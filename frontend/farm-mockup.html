@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farm Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* farm fork: a design mockup of the whole environment, all pixel art. Frames are 9-slice images painted
+     pixel by pixel at load (see makeFrames), shown at an integer 2x so every art pixel is a 2x2 block. */
+  :root { --ink: #4a2c16; --ink-soft: #7a5432; --cream: #fff3d6; --leaf: #5f9c3e; --gold: #f2c14e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: 'Pixelify Sans', monospace; color: var(--ink); -webkit-font-smoothing: none; font-smooth: never; }
+  body { display: grid; grid-template-rows: 64px 1fr 88px; grid-template-columns: 300px 1fr 368px; height: 100vh; overflow: hidden; background: #3a2414; image-rendering: pixelated; }
+  img, canvas { image-rendering: pixelated; }
+
+  .woodbar { background-image: var(--plank); background-size: 64px 32px; }
+  .frame { border: 12px solid transparent; border-image: var(--f-parch) 6 fill / 12px stretch; }
+  .frame-wood { border: 12px solid transparent; border-image: var(--f-wood) 6 fill / 12px stretch; color: var(--cream); }
+  .frame-slot { border: 8px solid transparent; border-image: var(--f-slot) 4 fill / 8px stretch; }
+  .frame-slot.frame-sel, .choice:hover { border-image-source: var(--f-sel); }
+  .frame.frame-sel { border-image-source: var(--f-parch-sel); }
+
+  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-bottom: 4px solid #3a2414; }
+  .logo { font-weight: 700; font-size: 32px; color: var(--cream); text-shadow: 2px 0 #3a2414, -2px 0 #3a2414, 0 2px #3a2414, 0 -2px #3a2414, 2px 2px #3a2414; }
+  .logo small { font-size: 16px; font-weight: 500; }
+  .spacer { flex: 1; }
+  .chip { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; padding: 0 4px; height: 40px; }
+  .chip img { width: 24px; height: 24px; }
+  .energy { display: inline-flex; width: 104px; height: 16px; background: #5a3a20; box-shadow: 0 0 0 2px #3a2414; }
+  .energy i { display: block; height: 100%; width: 68%; background: #7fcf4f; box-shadow: inset 0 4px 0 #a8e878, inset 0 -4px 0 #5aa83a; }
+
+  .left { grid-area: 2 / 1; } main { grid-area: 2 / 2; } .right { grid-area: 2 / 3; }
+  aside { padding: 12px; overflow: auto; background-image: var(--plank-dark); background-size: 64px 32px; }
+  h2 { margin: 2px 4px 10px; font-size: 18px; color: var(--cream); text-shadow: 2px 2px #3a2414; }
+  .card { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: center; margin-bottom: 8px; cursor: pointer; }
+  .card .face { width: 56px; height: 56px; background: #a8d8ec; box-shadow: 0 0 0 2px #3a2414; display: grid; place-items: end center; overflow: hidden; }
+  .card .face img { width: 48px; height: 48px; }
+  .card b { font-size: 18px; display: block; line-height: 1.1; }
+  .card span { font-size: 16px; color: var(--ink-soft); line-height: 1.2; }
+  .tag { display: inline-block; margin-top: 4px; font-size: 14px; padding: 0 6px; background: #8fcf5f; color: #23400f; box-shadow: 0 0 0 2px #4a7a2a; }
+
+  main { position: relative; overflow: hidden; border-left: 4px solid #3a2414; border-right: 4px solid #3a2414; background: #548c42; }
+  #farm { width: 100%; height: 100%; display: block; cursor: grab; }
+  #farm:active { cursor: grabbing; }
+  .toast { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); font-size: 16px; white-space: nowrap; padding: 0 6px; display: flex; gap: 8px; align-items: center; }
+  .toast img { width: 24px; height: 24px; }
+  .zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+  .zoom button { width: 40px; height: 40px; font: inherit; font-size: 20px; font-weight: 700; color: var(--ink); background: none; cursor: pointer; padding: 0; }
+
+  .right { display: flex; flex-direction: column; gap: 8px; }
+  .speaker { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 6px; }
+  .speaker .face { width: 96px; height: 96px; background: #a8d8ec; box-shadow: 0 0 0 2px #3a2414; display: grid; place-items: end center; overflow: hidden; }
+  .speaker .face img { width: 96px; height: 96px; }
+  .nameplate { font-weight: 700; font-size: 18px; padding: 0 4px; }
+  .say { font-size: 17px; line-height: 1.3; margin: 4px 2px 6px; }
+  .choice { display: block; width: 100%; text-align: left; font: inherit; font-size: 16px; color: var(--ink); background: none; padding: 2px 4px; margin-top: 4px; cursor: pointer; }
+  .choice::before { content: '▶ '; color: #c0503a; font-size: 12px; }
+  .quests h3 { margin: 0 0 6px; font-size: 16px; }
+  .q { display: grid; grid-template-columns: 28px 1fr; gap: 6px; font-size: 16px; margin-bottom: 6px; align-items: center; }
+  .q canvas { width: 22px; height: 22px; }
+  .bar { height: 8px; background: #ead3a0; box-shadow: 0 0 0 2px #b88a50; margin-top: 4px; }
+  .bar i { display: block; height: 100%; background: #7fbf4f; box-shadow: inset 0 -2px 0 #5a9a3a; }
+  .compose { display: flex; gap: 8px; margin-top: auto; align-items: center; }
+  .compose input { flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 2px 6px; background: none; color: var(--ink); outline: none; }
+  .compose button { font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; padding: 0 4px; }
+
+  footer { grid-column: 1 / -1; display: flex; justify-content: center; align-items: center; gap: 6px; border-top: 4px solid #3a2414; }
+  .slot { width: 76px; height: 72px; display: grid; place-items: center; font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; line-height: 1; }
+  .slot img { width: 32px; height: 32px; display: block; margin: 0 auto 2px; }
+</style>
+</head>
+<body>
+<header class="woodbar">
+  <div class="logo">StarNet <small>farm</small></div>
+  <div class="spacer"></div>
+  <div class="chip frame"><img data-icon="sun" alt="">Tue 14 · Autumn</div>
+  <div class="chip frame" id="clock">2:40 pm</div>
+  <div class="chip frame"><img data-icon="coin" alt="">12.40</div>
+  <div class="chip frame">Energy <span class="energy"><i></i></span></div>
+</header>
+
+<aside class="left">
+  <h2>Villagers</h2>
+  <div id="cards"></div>
+</aside>
+
+<main>
+  <canvas id="farm"></canvas>
+  <div class="toast frame"><img data-icon="crate" alt="">Nova reeled in 3 sources on soil pH</div>
+  <div class="zoom"><button class="frame-slot" id="zin">+</button><button class="frame-slot" id="zout">−</button></div>
+</main>
+
+<aside class="right">
+  <div class="frame dialog">
+    <div class="speaker"><div class="face"><img id="talkface" alt=""></div><div class="frame-wood nameplate">Nova</div></div>
+    <p class="say">Good afternoon! I reeled in three solid sources on soil pH while you were out. Want me to write them up for the field notes?</p>
+    <button class="choice frame-slot">Yes, write them up</button>
+    <button class="choice frame-slot">Show me the sources first</button>
+    <button class="choice frame-slot">Not now, keep fishing</button>
+  </div>
+  <div class="frame quests">
+    <h3>Growing on the farm</h3>
+    <div class="q"><canvas width="11" height="11" data-stage="3"></canvas><div>Weekly newsletter draft<div class="bar"><i style="width:80%"></i></div></div></div>
+    <div class="q"><canvas width="11" height="11" data-stage="2"></canvas><div>Fix the invoice script<div class="bar"><i style="width:45%"></i></div></div></div>
+    <div class="q"><canvas width="11" height="11" data-stage="1"></canvas><div>Plan the market stall<div class="bar"><i style="width:15%"></i></div></div></div>
+  </div>
+  <div class="frame compose"><input placeholder="Say something to Nova…"><button class="frame-wood">Send</button></div>
+</aside>
+
+<footer class="woodbar">
+  <div class="slot frame-slot frame-sel"><div><img data-icon="hat" alt="">Villagers</div></div>
+  <div class="slot frame-slot"><div><img data-icon="scroll" alt="">Tasks</div></div>
+  <div class="slot frame-slot"><div><img data-icon="hammer" alt="">Build</div></div>
+  <div class="slot frame-slot"><div><img data-icon="crate" alt="">Harvest</div></div>
+  <div class="slot frame-slot"><div><img data-icon="letter" alt="">Mail</div></div>
+  <div class="slot frame-slot"><div><img data-icon="gear" alt="">Settings</div></div>
+</footer>
+
+<script src="app/terrain.js"></script>
+<script src="app/farmground.js"></script>
+<script>
+'use strict';
+const ART = 'assets/farm/';
+const OUT = '#3a2414';
+
+/* ------------------------------------------------------------ pixel UI frames ---- */
+function canvasURL(w, h, paint) { const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d')); return c.toDataURL(); }
+function makeFrames() {
+  const px = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+  // a 16x16 9-slice with a 6px border: dark outline with clipped corners, a lit/shaded wood rim, an inner line, then the fill
+  const nine = (fill, rimHi, rim, rimLo, inner) => canvasURL(16, 16, g => {
+    px(g, 1, 0, 14, 16, OUT); px(g, 0, 1, 16, 14, OUT);
+    px(g, 1, 1, 14, 14, rim); px(g, 1, 1, 14, 2, rimHi); px(g, 1, 1, 2, 14, rimHi); px(g, 1, 13, 14, 2, rimLo); px(g, 13, 1, 2, 14, rimLo);
+    px(g, 3, 3, 10, 10, inner); px(g, 4, 4, 8, 8, fill);
+    px(g, 4, 4, 8, 1, shade(fill, 0.92));
+  });
+  const slot = (fill, line) => canvasURL(12, 12, g => {
+    px(g, 1, 0, 10, 12, line); px(g, 0, 1, 12, 10, line); px(g, 1, 1, 10, 10, fill);
+    px(g, 1, 1, 10, 1, shade(fill, 0.88)); px(g, 1, 1, 1, 10, shade(fill, 0.88)); px(g, 2, 10, 9, 1, shade(fill, 1.04));
+  });
+  const plank = (base) => canvasURL(32, 16, g => {
+    px(g, 0, 0, 32, 16, base);
+    for (let y of [0, 8]) { px(g, 0, y, 32, 1, shade(base, 1.18)); px(g, 0, y + 7, 32, 1, shade(base, 0.7)); }
+    px(g, 11, 1, 1, 6, shade(base, 0.7)); px(g, 27, 9, 1, 6, shade(base, 0.7));
+    [[3, 3], [17, 5], [22, 2], [6, 11], [14, 12], [30, 10]].forEach(([x, y]) => px(g, x, y, 3, 1, shade(base, 0.85)));
+  });
+  const R = document.documentElement.style;
+  R.setProperty('--f-parch', `url(${nine('#f4e4bc', '#d49a5c', '#a8703c', '#6a4024', '#5a3418')})`);
+  R.setProperty('--f-parch-sel', `url(${nine('#fff6d2', '#ffe08a', '#f2c14e', '#c8902a', '#8a5a18')})`);
+  R.setProperty('--f-wood', `url(${nine('#9a6538', '#d49a5c', '#a8703c', '#6a4024', '#5a3418')})`);
+  R.setProperty('--f-slot', `url(${slot('#f6e2b0', '#a8703c')})`);
+  R.setProperty('--f-sel', `url(${slot('#fff3c8', '#e8a83a')})`);
+  R.setProperty('--plank', `url(${plank('#a8703c')})`);
+  R.setProperty('--plank-dark', `url(${plank('#7a4b28')})`);
+}
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16), c = v => Math.max(0, Math.min(255, Math.round(v * k)));
+  return '#' + ((1 << 24) | (c(n >> 16 & 255) << 16) | (c(n >> 8 & 255) << 8) | c(n & 255)).toString(16).slice(1);
+}
+makeFrames();
+
+/* ------------------------------------------------------------------ art loading ---- */
+const IMG = {};
+const NAMES = ['farmhouse', 'barn', 'coop', 'well', 'shipping_bin', 'notice_board', 'mailbox', 'scarecrow', 'woodpile',
+  'portrait_nova', 'portrait_bo', 'portrait_mira', 'portrait_ivar', 'portrait_saga'];
+const ICONS = ['hat', 'scroll', 'hammer', 'crate', 'letter', 'gear', 'coin', 'sun', 'sprout'];
+const load = (name, src) => new Promise(res => { const im = new Image(); im.onload = () => { IMG[name] = im; res(); }; im.onerror = () => res(); im.src = src; });
+
+/* ------------------------------------------------------------------ the scene ---- */
+const cv = document.getElementById('farm');
+let g = cv.getContext('2d');
+const STATION = { x: 0, y: 0, w: 300, h: 190 };
+const MEADOW = Terrain.GROUNDS.meadow, CELL = MEADOW.CELL;
+const CLR = { x: STATION.x - CELL / 2, y: STATION.y - CELL / 2, w: STATION.w + CELL, h: STATION.h + CELL };
+const YD = MEADOW.yard(CLR);
+const GROUND = { x: -700, y: -560, w: 1700, h: 1300 };
+const groundCv = document.createElement('canvas'); groundCv.width = GROUND.w; groundCv.height = GROUND.h;
+{
+  const gg = groundCv.getContext('2d'); gg.imageSmoothingEnabled = false;
+  Terrain.setGround('meadow');
+  const cam = { scale: 1, panX: -GROUND.x, panY: -GROUND.y };
+  gg.setTransform(1, 0, 0, 1, cam.panX, cam.panY);
+  Terrain.draw(gg, cam, GROUND.w, GROUND.h, STATION);
+}
+
+let zoom = 2, camX = 150, camY = 150, T = 0;           // zoom = device pixels per world pixel, always an integer
+const P = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+// a pixel ellipse, one span per row: no anti-aliased edges anywhere in the world
+function ell(cx, cy, rx, ry, c) {
+  g.fillStyle = c;
+  for (let y = -Math.ceil(ry); y <= Math.ceil(ry); y++) {
+    const k = 1 - (y * y) / (ry * ry); if (k < 0) continue;
+    const hw = Math.round(rx * Math.sqrt(k)); g.fillRect(Math.round(cx) - hw, Math.round(cy) + y, hw * 2, 1);
+  }
+}
+// a pixel line (Bresenham)
+function line(x0, y0, x1, y1, c) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let e = dx + dy;
+  g.fillStyle = c;
+  for (;;) { g.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
+}
+const SHADOW = '#467a38';
+function sprite(name, x, y, fallback) {                   // x = centre, y = foot
+  const im = IMG[name];
+  if (!im) { if (fallback) fallback(x, y); return; }
+  ell(x + 2, y - 1, im.width * 0.46, 4, SHADOW);
+  g.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height));
+}
+
+/* little procedural props for whatever the generator has not produced yet */
+const fallbackBin = (x, y) => { P(x - 15, y - 17, 30, 18, OUT); P(x - 14, y - 16, 28, 16, '#a8703c'); P(x - 16, y - 21, 32, 6, OUT); P(x - 15, y - 20, 30, 4, '#c08a52'); };
+const fallbackBoard = (x, y) => { P(x - 13, y - 30, 3, 30, OUT); P(x + 10, y - 30, 3, 30, OUT); P(x - 15, y - 32, 30, 20, OUT); P(x - 14, y - 31, 28, 18, '#a8703c'); P(x - 11, y - 29, 8, 9, '#fbf3dc'); P(x + 1, y - 28, 7, 10, '#fbf3dc'); };
+const fallbackMail = (x, y) => { P(x, y - 16, 2, 16, '#6a4024'); P(x - 5, y - 23, 12, 8, OUT); P(x - 4, y - 22, 10, 6, '#3a7ad0'); P(x + 6, y - 28, 2, 7, '#d0534a'); };
+const fallbackPile = (x, y) => { for (let r = 0; r < 3; r++) for (let i = 0; i < 4 - r; i++) { const cx = x - 12 + i * 7 + r * 3.5, cy = y - 4 - r * 6; ell(cx, cy, 4, 4, OUT); ell(cx, cy, 3, 3, '#c49460'); ell(cx, cy, 1, 1, '#e2c08c'); } };
+const fallbackCrow = (x, y) => { P(x, y - 26, 2, 26, '#7a4b28'); P(x - 9, y - 20, 20, 2, '#7a4b28'); P(x - 4, y - 21, 10, 9, '#4a7ad0'); P(x - 3, y - 30, 8, 8, '#e8d098'); P(x - 6, y - 32, 14, 3, '#d8b04a'); };
+
+function hen(x, y, i) {
+  const peck = Math.sin(T * 3 + i * 2) > 0.6 ? 1 : 0, dir = Math.sin(T * 0.5 + i) > 0 ? 1 : -1;
+  ell(x, y, 4, 1, SHADOW);
+  P(x - 4, y - 5, 8, 5, OUT); P(x - 3, y - 4, 6, 4, '#fbf7ee'); P(x - 3, y - 4, 6, 1, '#ffffff'); P(x - 3 - dir, y - 4, 1, 2, '#e8e0d0');
+  const hx = x + dir * 3;
+  P(hx - 2, y - 8 + peck, 4, 4, OUT); P(hx - 1, y - 7 + peck, 2, 2, '#fbf7ee'); P(hx - 1, y - 8 + peck, 2, 1, '#e04a3a'); P(hx + dir * 2, y - 6 + peck, 1, 1, '#f2a03a');
+  P(x - 2, y, 1, 1, '#f2a03a'); P(x + 1, y, 1, 1, '#f2a03a');
+}
+
+/* ---- the villagers: little farmers, every coordinate on the grid ---- */
+const PEOPLE = [
+  { id: 'nova', name: 'Nova', shirt: '#e07a5a', pants: '#4a6ab0', hair: '#5a3420', hat: true,  skin: '#f2c9a0', doing: 'Fishing at the pond', tag: 'web search', icon: 'fish' },
+  { id: 'bo',   name: 'Bo',   shirt: '#4a9a4a', pants: '#7a5232', hair: '#e0b84a', hat: false, skin: '#e8b48a', doing: 'Splitting wood',      tag: 'running code', icon: 'axe' },
+  { id: 'mira', name: 'Mira', shirt: '#b06ac0', pants: '#4a6ab0', hair: '#2a1a12', hat: true,  skin: '#a8704c', doing: 'Watering the field',  tag: 'drafting', icon: 'drop' },
+  { id: 'ivar', name: 'Ivar', shirt: '#e0b83a', pants: '#3a5a8a', hair: '#9a4a2a', hat: false, skin: '#f2c9a0', doing: 'Taking the mail out', tag: 'sending email', icon: 'letter' },
+  { id: 'saga', name: 'Saga', shirt: '#5aa8c8', pants: '#7a5232', hair: '#f0e0b0', hat: true,  skin: '#f6d8b8', doing: 'Feeding the hens',    tag: 'memory', icon: 'seed' },
+];
+
+function farmer(p, x, y, t, opts = {}) {
+  x = Math.round(x); y = Math.round(y);
+  const st = opts.walking ? (Math.sin(t * 9) > 0 ? 1 : 0) : 0;
+  ell(x, y, 6, 2, SHADOW);
+  const parts = [
+    [x - 4 + st, y - 7, 3, 7, p.pants], [x + 1 - st, y - 7, 3, 7, p.pants],
+    [x - 4 + st, y - 2, 3, 2, '#4a2c16'], [x + 1 - st, y - 2, 3, 2, '#4a2c16'],
+    [x - 5, y - 15, 10, 9, p.shirt],
+    [x - 4, y - 12, 8, 6, p.pants], [x - 4, y - 15, 2, 3, p.pants], [x + 2, y - 15, 2, 3, p.pants],
+    [x - 7, y - 14, 2, 6, p.shirt], [x + 5, y - 14, 2, 6, p.shirt],
+    [x - 7, y - 8, 2, 2, p.skin], [x + 5, y - 8, 2, 2, p.skin],
+    [x - 4, y - 23, 8, 8, p.skin],
+  ];
+  for (const [a, b, w, h] of parts) P(a - 1, b - 1, w + 2, h + 2, OUT);
+  for (const [a, b, w, h, c] of parts) P(a, b, w, h, c);
+  P(x - 4, y - 24, 8, 3, p.hair); P(x - 5, y - 22, 1, 5, p.hair); P(x + 4, y - 22, 1, 4, p.hair);
+  P(x - 2, y - 19, 1, 2, '#2a1a10'); P(x + 1, y - 19, 1, 2, '#2a1a10');
+  P(x - 3, y - 17, 1, 1, '#f08a7a'); P(x + 2, y - 17, 1, 1, '#f08a7a');
+  if (p.hat) { P(x - 8, y - 26, 16, 3, OUT); P(x - 7, y - 25, 14, 1, '#e8c662'); P(x - 4, y - 30, 8, 5, OUT); P(x - 3, y - 29, 6, 3, '#e8c662'); P(x - 3, y - 26, 6, 1, '#c0503a'); }
+}
+/* the thought bubble above a working villager: a tiny pixel icon of what it is doing */
+const BUBBLE_ICON = {
+  fish: (x, y) => { P(x - 3, y, 5, 3, '#e08a3a'); P(x + 2, y - 1, 2, 5, '#e08a3a'); P(x - 2, y + 1, 1, 1, OUT); },
+  axe: (x, y) => { line(x - 3, y + 4, x + 2, y - 1, '#a8703c'); P(x + 1, y - 2, 3, 3, '#a8acb4'); },
+  drop: (x, y) => { P(x - 1, y - 2, 2, 1, '#5aa8e8'); P(x - 2, y - 1, 4, 3, '#5aa8e8'); P(x - 1, y + 2, 2, 1, '#5aa8e8'); P(x - 1, y - 1, 1, 1, '#c8e8f8'); },
+  letter: (x, y) => { P(x - 3, y - 1, 7, 5, '#fbf3dc'); line(x - 3, y - 1, x, y + 1, '#c0a070'); line(x + 3, y - 1, x, y + 1, '#c0a070'); P(x, y + 1, 1, 1, '#d0534a'); },
+  seed: (x, y) => { [[-2, 0], [1, -1], [0, 2], [2, 2], [-1, 3]].forEach(([a, b]) => P(x + a, y + b, 1, 1, '#d8b04a')); },
+};
+function bubble(x, y, icon) {
+  const b = Math.sin(T * 2.5) > 0 ? 0 : 1;
+  x = Math.round(x); y = Math.round(y) + b;
+  P(x - 6, y - 12, 12, 10, OUT); P(x - 5, y - 11, 10, 8, '#fffaf0'); P(x - 1, y - 2, 3, 1, OUT); P(x, y - 2, 1, 2, OUT); P(x - 1, y - 3, 2, 1, '#fffaf0');
+  BUBBLE_ICON[icon](x, y - 8);
+}
+
+function jobs() {
+  const out = [], pond = YD.pond, field = YD.field;
+  { // NOVA fishes from the pond's west bank
+    const x = pond.x + 4, y = pond.y + pond.h / 2 + 6;
+    out.push({ y, draw: () => {
+      farmer(PEOPLE[0], x, y, T);
+      const tip = { x: x + 14, y: y - 26 }, bx = x + 38, by = y - 2 + (Math.sin(T * 3) > 0 ? 1 : 0);
+      line(x + 6, y - 9, tip.x, tip.y, '#6a4024');
+      line(tip.x, tip.y, (tip.x + bx) / 2, tip.y + 4, '#f4f0e8'); line((tip.x + bx) / 2, tip.y + 4, bx, by - 1, '#f4f0e8');
+      P(bx - 1, by - 1, 2, 1, '#ffffff'); P(bx - 1, by, 2, 2, '#d0534a');
+      const ph = Math.floor((T * 2.4) % 3);                       // three discrete ripple rings
+      const rx = 3 + ph * 3, ry = 1 + ph;
+      for (let a = 0; a < 16; a++) { const t = a / 16 * Math.PI * 2; P(bx + Math.round(Math.cos(t) * rx), by + 2 + Math.round(Math.sin(t) * ry), 1, 1, ph < 2 ? '#c8e8f8' : '#8ac0dc'); }
+      bubble(x, y - 31, 'fish');
+    } });
+  }
+  { // BO splits wood by the woodpile
+    const sx = STATION.x + STATION.w - 40, sy = STATION.y + STATION.h - 20;
+    out.push({ y: sy - 26, draw: () => sprite('woodpile', sx + 14, sy - 26, fallbackPile) });
+    out.push({ y: sy, draw: () => {
+      ell(sx, sy, 8, 2, SHADOW); P(sx - 7, sy - 8, 14, 9, OUT); P(sx - 6, sy - 8, 12, 8, '#6a4430'); P(sx - 6, sy - 8, 3, 8, '#7e5638');
+      ell(sx, sy - 8, 7, 3, OUT); ell(sx, sy - 8, 6, 2, '#d0a874'); ell(sx, sy - 8, 3, 1, '#b88a58');
+      farmer(PEOPLE[1], sx - 14, sy + 2, T);
+      const up = Math.sin(T * 5) > 0;                                // two honest poses: raised, and bitten into the block
+      const hx = sx - 8, hy = sy - 10;
+      if (up) { line(hx, hy, hx + 4, hy - 13, '#c08a52'); P(hx + 2, hy - 17, 5, 4, '#a8acb4'); P(hx + 6, hy - 17, 1, 4, '#e0e4e8'); }
+      else { line(hx, hy, hx + 11, hy + 1, '#c08a52'); P(hx + 10, hy - 1, 4, 5, '#a8acb4'); P(hx + 13, hy - 1, 1, 5, '#e0e4e8');
+        [[-3, -11], [2, -13], [6, -10]].forEach(([a, b]) => P(sx + a, sy + b, 1, 1, '#e2c08c')); }
+      bubble(sx - 14, sy - 29, 'axe');
+    } });
+  }
+  { // MIRA waters the crop field, walking its rows
+    const k = Math.sin(T * 0.4) * 0.5 + 0.5, x = field.x + 14 + k * (field.w - 28), y = field.y + field.h - 18;
+    out.push({ y, draw: () => {
+      farmer(PEOPLE[2], x, y, T, { walking: true });
+      P(x + 6, y - 11, 6, 5, OUT); P(x + 7, y - 10, 4, 3, '#7aa0b8'); P(x + 11, y - 11, 4, 1, '#7aa0b8');
+      for (let i = 0; i < 3; i++) { const d = ((T * 3 + i / 3) % 1); P(x + 15 + Math.round(d * 2), y - 10 + Math.round(d * 9), 1, 2, '#9fd3ec'); }
+      bubble(x, y - 31, 'drop');
+    } });
+  }
+  { // IVAR walks the path out to the mailbox and back
+    const mb = { x: YD.gx + 34, y: YD.gate.y + 42 };
+    const k = Math.sin(T * 0.5) * 0.5 + 0.5, x = YD.gx - 6, y = YD.gate.y - 40 + k * 76;
+    out.push({ y: mb.y, draw: () => sprite('mailbox', mb.x, mb.y, fallbackMail) });
+    out.push({ y, draw: () => {
+      farmer(PEOPLE[3], x, y, T, { walking: Math.abs(Math.cos(T * 0.5)) > 0.15 });
+      P(x + 5, y - 12, 7, 5, OUT); P(x + 6, y - 11, 5, 3, '#fbf3dc'); P(x + 8, y - 10, 1, 1, '#d0534a');
+      bubble(x, y - 31, 'letter');
+    } });
+  }
+  { // SAGA feeds the hens by the coop
+    const cx = STATION.x + 42, cy = STATION.y + STATION.h - 24;
+    out.push({ y: cy - 30, draw: () => sprite('coop', cx - 4, cy - 30) });
+    for (let i = 0; i < 5; i++) {
+      const hx = cx + 10 + Math.round(Math.cos(i * 1.7 + T * 0.25) * 18), hy = cy - 2 + Math.round(Math.sin(i * 2.3) * 7);
+      out.push({ y: hy, draw: () => hen(hx, hy, i) });
+    }
+    out.push({ y: cy + 8, draw: () => {
+      farmer(PEOPLE[4], cx - 20, cy + 8, T);
+      for (let i = 0; i < 4; i++) { const d = (T * 1.5 + i / 4) % 1; P(cx - 12 + Math.round(d * 18), cy - 4 + Math.round(d * d * 12), 1, 1, '#e8d088'); }
+      bubble(cx - 20, cy - 23, 'seed');
+    } });
+  }
+  return out;
+}
+
+function chimneySmoke(x, y) {                     // pixel puffs, stepped not faded
+  for (let i = 0; i < 4; i++) {
+    const ph = (T * 0.35 + i / 4) % 1, r = 2 + Math.floor(ph * 4);
+    if (ph > 0.85) continue;
+    const px_ = x + Math.round(Math.sin(ph * 6 + i) * 3 + ph * 10), py = y - Math.round(ph * 34);
+    ell(px_, py, r, r, ph < 0.5 ? '#f4f2ec' : '#d8d6d0');
+  }
+}
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false;
+  g.fillStyle = MEADOW.base; g.fillRect(0, 0, cv.width, cv.height);
+  const s = Math.max(1, Math.round(zoom * dpr));                 // integer device pixels per art pixel
+  const ox = Math.round(cv.width / 2 - camX * s), oy = Math.round(cv.height / 2 - camY * s);
+  g.setTransform(s, 0, 0, s, ox, oy);
+  g.drawImage(groundCv, GROUND.x, GROUND.y);
+
+  const items = [];
+  const house = { x: STATION.x + 76, y: STATION.y + 84 }, barnPos = { x: STATION.x + 222, y: STATION.y + 84 };
+  items.push({ y: house.y, draw: () => { sprite('farmhouse', house.x, house.y); chimneySmoke(house.x + 30, house.y - 84); } });
+  items.push({ y: barnPos.y, draw: () => sprite('barn', barnPos.x, barnPos.y) });
+  items.push({ y: STATION.y + 118, draw: () => sprite('shipping_bin', STATION.x + 146, STATION.y + 118, fallbackBin) });
+  items.push({ y: STATION.y + 146, draw: () => sprite('notice_board', STATION.x + 176, STATION.y + 146, fallbackBoard) });
+  items.push({ y: STATION.y + 140, draw: () => sprite('well', STATION.x + 112, STATION.y + 140) });
+  items.push({ y: YD.field.y + 50, draw: () => sprite('scarecrow', YD.field.x + YD.field.w - 22, YD.field.y + 50, fallbackCrow) });
+  for (let i = 0; i < 6; i++) P(house.x - 6 + (i % 2) * 3, house.y + 4 + i * 9, 10, 5, '#b8b2a4');
+  items.push(...jobs());
+  items.sort((a, b) => a.y - b.y).forEach(it => it.draw());
+}
+
+/* ------------------------------------------------------------------ the panels ---- */
+const cards = document.getElementById('cards');
+PEOPLE.forEach((p, i) => {
+  const el = document.createElement('div');
+  el.className = 'card frame' + (i === 0 ? ' frame-sel' : '');
+  el.innerHTML = `<div class="face"><img data-portrait="${p.id}" alt=""></div><div><b>${p.name}</b><span>${p.doing}</span><br><em class="tag">${p.tag}</em></div>`;
+  el.onclick = () => { document.querySelectorAll('.card').forEach((c, j) => c.classList.toggle('frame-sel', j === i)); focusOn(i); };
+  cards.appendChild(el);
+});
+document.querySelectorAll('.q canvas').forEach(c => {
+  const s = +c.dataset.stage, x = c.getContext('2d'), p = (a, b, w, h, col) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
+  p(0, 8, 11, 3, '#7a4b28'); p(0, 8, 11, 1, '#9a6538'); p(5, 8 - s * 2, 1, s * 2, '#5f9c3e');
+  if (s >= 1) { p(3, 6, 2, 2, '#7fbf4f'); p(6, 5, 2, 2, '#7fbf4f'); }
+  if (s >= 2) { p(2, 3, 2, 2, '#7fbf4f'); p(7, 2, 2, 2, '#7fbf4f'); }
+  if (s >= 3) { p(4, 0, 3, 3, '#e05a3a'); p(4, 0, 1, 1, '#f08a6a'); }
+});
+function focusOn(i) {
+  const spots = [[YD.pond.x + 20, YD.pond.y + 30], [STATION.x + STATION.w - 50, STATION.y + STATION.h - 40], [YD.field.x + 56, YD.field.y + 50], [YD.gx, YD.gate.y], [STATION.x + 40, STATION.y + STATION.h - 40]];
+  const [tx, ty] = spots[i], sx = camX, sy = camY, t0 = performance.now();
+  (function ease() { const k = Math.min(1, (performance.now() - t0) / 500), e = 1 - Math.pow(1 - k, 3); camX = sx + (tx - sx) * e; camY = sy + (ty - sy) * e; if (k < 1) requestAnimationFrame(ease); })();
+}
+
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, cx: camX, cy: camY }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (!drag) return; camX = drag.cx - (e.clientX - drag.x) / zoom; camY = drag.cy - (e.clientY - drag.y) / zoom; });
+cv.addEventListener('pointerup', () => drag = null);
+cv.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(1, Math.min(5, zoom + (e.deltaY < 0 ? 1 : -1))); }, { passive: false });
+document.getElementById('zin').onclick = () => zoom = Math.min(5, zoom + 1);
+document.getElementById('zout').onclick = () => zoom = Math.max(1, zoom - 1);
+
+Promise.all([
+  ...NAMES.map(n => load(n, ART + n + '.png')),
+  ...ICONS.map(n => load('icon_' + n, ART + 'icon_' + n + '.png')),
+]).then(() => {
+  document.querySelectorAll('[data-portrait]').forEach(im => { const a = IMG['portrait_' + im.dataset.portrait]; if (a) im.src = a.src; });
+  if (IMG.portrait_nova) document.getElementById('talkface').src = IMG.portrait_nova.src;
+  document.querySelectorAll('[data-icon]').forEach(im => { const a = IMG['icon_' + im.dataset.icon]; if (a) im.src = a.src; else im.remove(); });
+});
+
+const clock = document.getElementById('clock');
+requestAnimationFrame(function frame(now) {
+  T = now / 1000; draw();
+  clock.textContent = `2:${String(40 + Math.floor(T / 6) % 20).padStart(2, '0')} pm`;
+  requestAnimationFrame(frame);
+});
+</script>
+</body>
+</html>
