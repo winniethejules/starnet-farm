@@ -11,7 +11,7 @@ self.onmessage = ({ data }) => {
   try {
     if (!['sky', 'ground'].includes(kind) || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 8192 || height > 8192 || width * height > 20000000) throw new Error('Invalid bake dimensions');
     window.devicePixelRatio = data.dpr || 1; window.screen = data.screen || {}; motion.matches = !!data.reduced;
-    if (!loaded) { importScripts('spacebg.js', 'terrain.js'); loaded = true; }
+    if (!loaded) { importScripts('spacebg.js', 'terrain.js', 'farmground.js'); loaded = true; }
     if (kind === 'ground') {
       if (!Terrain.GROUNDS[id] || !Number.isFinite(data.scale) || data.scale <= 0) throw new Error('Invalid ground');
       Terrain.setGround(id);

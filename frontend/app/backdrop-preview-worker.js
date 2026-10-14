@@ -13,7 +13,7 @@ self.onmessage = ({ data }) => {
   try {
     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 512 || height > 256) throw new Error('Invalid sample size');
     window.devicePixelRatio = data.dpr || 1; window.screen = data.screen || {}; motion.matches = !!data.reduced;
-    if (!loaded) { importScripts('terrain.js', 'spacebg.js'); loaded = true; }
+    if (!loaded) { importScripts('terrain.js', 'farmground.js', 'spacebg.js'); loaded = true; }
     const canvas = new OffscreenCanvas(width, height), ctx = canvas.getContext('2d');
     if (Terrain.GROUNDS[id]) Terrain.paintSample(ctx, width, height, id);
     else SpaceBG.paintSample(ctx, width, height, id, 8000);

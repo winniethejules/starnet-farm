@@ -1540,7 +1540,18 @@ const Terrain = (typeof document === 'undefined') ? { active: () => false } : ((
     ctx.restore();
   }
 
-  return { draw, setGround, getGround, active, baseColor, list, paintSample, invalidate, _dbgLosePixels,
+  /* SKIN HOOK (farm fork): a skin file adds its own ground without editing this registry, and borrows
+     the same pure helpers so its pixels follow the same laws (hard edges, hashed placement, dithering). */
+  function register(id, G, first) {
+    if (!id || !G || typeof G.buildPatch !== 'function' || typeof G.buildSprites !== 'function' || typeof G.place !== 'function') return false;
+    GROUNDS[id] = G;
+    if (!ORDER.includes(id)) first ? ORDER.unshift(id) : ORDER.push(id);
+    sampleChips.clear();
+    return true;
+  }
+  const util = { mkCv, rgb, rgba, mix, clamp01, ramp, dither, hardEdge, mulberry32, h01, vnoise, noiseField, nearClearing, SUN };
+
+  return { draw, setGround, getGround, active, baseColor, list, paintSample, invalidate, _dbgLosePixels, register, util,
     _dbgBakeState: () => ({ ready: !!plate && plate.id === curId, id: plate?.id || builtId,
       width: plate?.canvas.width || 0, height: plate?.canvas.height || 0, scale: plate?.scale || 0,
       left: plate?.left, top: plate?.top, stationKey: plate?.stationKey }), GROUNDS };
