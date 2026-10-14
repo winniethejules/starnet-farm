@@ -170,6 +170,8 @@ const WorldModel = (() => {
     // drives the DOMINANT channel hardest, its lifts run toward pure green rather than the
     // yellow-green of a lawn. Raising red and dropping blue is what buys the olive.
     meadow:   { base: '#374024', label: 'MEADOW' },
+    // FARM FORK: a sunlit pine/honey wood a step lighter than OAK, for the farmhouse floors.
+    honey:    { base: '#8a6844', label: 'HONEY' },
     // value poles — the bright + near-black ends of the range (stark, deliberate)
     bone:     { base: '#e7e3d9', label: 'BONE' },
     /* WHITE — bone's neutral twin, added 2026-08-05 for the SHELL axis (Andrew: "lets add white as a
@@ -284,7 +286,7 @@ const WorldModel = (() => {
     station:   { label: 'STATION',   suggest: null,     blurb: 'riveted hull plate — the shell you launched with' },
     monocoque: { label: 'MONOCOQUE', suggest: 'bone', blurb: 'large inset alloy panels with recessed joints and protected edge rails' },
     timber:    { label: 'TIMBER',    suggest: 'walnut', blurb: 'stacked log courses — the cabin' },
-    clapboard: { label: 'CLAPBOARD', suggest: 'ash',    blurb: 'lapped siding boards — the farmhouse' },
+    clapboard: { label: 'CLAPBOARD', suggest: 'white',   /* FARM FORK: was 'ash' */    blurb: 'lapped siding boards — the farmhouse' },
     shingle:   { label: 'SHINGLE',   suggest: 'oak',    blurb: 'overlapping shingles — a pitched roof from above' },
     brick:     { label: 'BRICK',     suggest: 'ember',  blurb: 'narrow fired-clay masonry with dark recessed mortar' },
     stone:     { label: 'STONE',     suggest: 'ash',    blurb: 'irregular rubble masonry — the cottage' },
@@ -316,14 +318,16 @@ const WorldModel = (() => {
      every station already built — floorMat is null on all of them — because the default deck is the
      one surface every player sees. `plate` stays in the palette, so the old look is still choosable
      and nothing is destroyed. It also means the Guardian goldens all shift. */
+  /* FARM FORK: every kind defaults to a wooden farmstead finish (plank / parquet in oak and walnut) instead of
+     the station's alloy decks. Labels and capability meaning are unchanged. */
   const ROOM_KINDS = {
-    hab:      { label: 'HAB',      floor: 'hull',     mat: 'spine' },
-    bridge:   { label: 'BRIDGE',   floor: 'cobalt',   mat: 'panel' },
-    lab:      { label: 'LAB',      floor: 'sterile',  mat: 'tile'  },
-    factory:  { label: 'FOUNDRY',  floor: 'rust',     mat: 'tread' },
-    quarters: { label: 'QUARTERS', floor: 'verdant',  mat: 'soft'  },
-    storage:  { label: 'STORAGE',  floor: 'rust',     mat: 'tread' },
-    corridor: { label: 'CORRIDOR', floor: 'corridor', mat: 'spine' },
+    hab:      { label: 'HAB',      floor: 'honey',    mat: 'plank'   },
+    bridge:   { label: 'BRIDGE',   floor: 'honey',    mat: 'parquet' },
+    lab:      { label: 'LAB',      floor: 'bone',     mat: 'tile'    },
+    factory:  { label: 'FOUNDRY',  floor: 'oak',      mat: 'plank'   },
+    quarters: { label: 'QUARTERS', floor: 'honey',    mat: 'parquet' },
+    storage:  { label: 'STORAGE',  floor: 'oak',      mat: 'plank'   },
+    corridor: { label: 'CORRIDOR', floor: 'honey',    mat: 'plank'   },
   };
   // a room's effective deck material: explicit override, else the kind default, else plate.
   const matOfRoom = rm => (rm && FLOOR_MATERIALS[rm.floorMat]) ? rm.floorMat
@@ -334,7 +338,7 @@ const WorldModel = (() => {
      geometry arriving without one). 2026-07-25: moved off `plating` onto `bulkhead` — every room
      carries wallMat null, so this reaches stations already built, deliberately, for the same reason
      the deck default moved. `plating` stays in the palette as the classic. */
-  const wallMatOfRoom = rm => (rm && WALL_MATERIALS[rm.wallMat]) ? rm.wallMat : 'bulkhead';
+  const wallMatOfRoom = rm => (rm && WALL_MATERIALS[rm.wallMat]) ? rm.wallMat : 'wainscot';   // FARM FORK: was 'bulkhead'
   /* A CORRIDOR'S WALL IS THE STATION'S BULKHEAD, NOT ITS DECKING (2026-07-29, Andrew: "light
      doesn't seem to reflect on the walls of the hallway"). Following the deck is right for a ROOM —
      wall and floor are the same room's finish — but a corridor's floor style is DECKING #2c2924,
@@ -349,13 +353,13 @@ const WorldModel = (() => {
      Default only: an explicitly painted wallStyle still wins. */
   const wallStyleOfRoom = rm => {
     if (rm && FLOOR_STYLES[rm.wallStyle]) return rm.wallStyle;
-    if (rm && rm.kind === 'corridor') return 'hull';
+    if (rm && rm.kind === 'corridor') return 'honey';   // FARM FORK: was 'hull'
     if (rm && FLOOR_STYLES[rm.floorStyle]) return rm.floorStyle;
-    return 'hull';
+    return 'honey';   // FARM FORK: was 'hull'
   };
   /* THE AUTHORITY on a room's exterior shell (stationbake's HULL_RECIPES fallback is only for
      geometry arriving without one). Defaults to `station` so nothing already built moves. */
-  const hullMatOfRoom = rm => rm && rm.hullMat === 'insulation' ? 'thermal' : (rm && HULL_MATERIALS[rm.hullMat]) ? rm.hullMat : 'station';
+  const hullMatOfRoom = rm => rm && rm.hullMat === 'insulation' ? 'thermal' : (rm && HULL_MATERIALS[rm.hullMat]) ? rm.hullMat : 'clapboard';   // FARM FORK: was 'station'
   /* A HULL'S HUE, or null for "the shell's own tone". Explicit paint wins; otherwise the material's
      own suggested hue (see the HULL_MATERIALS note on why this binds in the model and the wall
      axis's `suggest` does not). A CORRIDOR follows the room it connects only in spirit — it takes
@@ -405,7 +409,7 @@ const WorldModel = (() => {
     doc.rooms[id] = {
       id, kind: 'hab', name: 'HAB-01',
       rects: [{ x1: 0, y1: 0, x2: 17, y2: 10 }],
-      floorStyle: 'hull', floorMat: null, wallStyle: null, wallMat: null, hullStyle: null, hullMat: null, tier: 0, floorPaint: {}
+      floorStyle: 'honey', floorMat: null, wallStyle: null, wallMat: null, hullStyle: null, hullMat: null, tier: 0, floorPaint: {}
     };
     doc.order.push(id);
     doc.meta.spawnRoomId = id;
@@ -3652,9 +3656,11 @@ const WorldModel = (() => {
       const room = doc.rooms[doc.meta.spawnRoomId];
       room.rects = [{ x1: 0, y1: 0, x2: 17, y2: 10 }];
       room.name = 'HOME';
-      room.floorMat = 'resin';
-      room.wallMat = 'panelled';
-      room.hullStyle = 'bone';
+      // FARM FORK: the starter home is a farmhouse (was resin deck, panelled walls, bone hull)
+      room.floorStyle = 'honey';
+      room.floorMat = 'plank';
+      room.wallMat = 'wainscot';
+      room.hullMat = 'clapboard';
       doc.props = [
         // The five essentials are real floor grants. Keep the desk unassigned so
         // ensureWorkstation adopts it for the new Commander on the normal boot path.

@@ -3,8 +3,12 @@
    The capability model is untouched: a prop still IS its capability (the dish still grants the web, the workbench
    still grants shell + verify). Only the picture changes, so the agents' real work reads as farm chores:
 
-     comms_dish -> FISHING POND   web search / fetch = casting a line and reeling something in
-     workbench  -> CHOPPING BLOCK running and testing code = splitting wood
+     comms_dish      -> FISHING POND      web search / fetch = casting a line and reeling something in
+     workbench       -> CHOPPING BLOCK    running and testing code = splitting wood
+     desk            -> KITCHEN TABLE     the agent's own seat; the oil lamp lights while it works
+     war_intelcab    -> CHEST OF DRAWERS  files = a drawer slides out when one is read or written
+     gigs_servercart -> DIARY LECTERN     memory = the diary, a candle while it writes
+     studio          -> EASEL             images = a painting filling in band by band
 
    How it hooks in WITHOUT editing propsprites.js: PropSprites exposes its draw-fn table as `_F` and takes its canvas
    through setCtx/setNow. We wrap those two setters to keep our own handle on the context, then replace the draw fns
@@ -144,10 +148,119 @@
     }
   }
 
+  /* a lantern / candle halo: the one translucent thing we draw, so warm light reads as light */
+  function halo(cx, cy, r, a) {
+    ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#ffc870';
+    ctx.beginPath(); ctx.arc(OX + cx * U, OY + cy * U, r * U, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
+  // a table-like wooden slab: lit top, darker apron, outlined
+  function slab(x, y, w, d, apron) {
+    px(x - 1, y - 1, w + 2, d + apron + 2, C.OUT);
+    px(x, y, w, d, C.WOOD[3]); px(x, y + d - 1, w, 1, C.WOOD[2]);
+    px(x, y + d, w, apron, C.WOOD[1]);
+    for (let i = 6; i < w - 2; i += 9) px(x + i, y + 1, 1, d - 2, C.WOOD[2]);   // board joints
+  }
+
+  /* ------------------------------------------------------- KITCHEN TABLE (the desk) ---- */
+  function table(x, y, w, h, o) {
+    OX = x; OY = y;
+    const W = w / U, H = h / U, t = o.still ? 0 : now / 1000;
+    if (H > W) {                                            // turned east/west: a narrow table seen end-on
+      slab(4, 2, W - 8, H - 12, 3);
+      px(W / 2 - 3, 8, 6, 4, C.WHITE); px(W / 2, 8, 1, 4, C.RING[0]);
+      return;
+    }
+    // legs, then the top over them
+    for (const lx of [4, W - 7]) { px(lx - 1, 4, 5, H - 4, C.OUT); px(lx, 4, 3, H - 5, C.WOOD[1]); }
+    slab(2, -6, W - 4, 8, 3);
+    // an open book on the table, pages turning while the agent works
+    px(W / 2 - 8, -4, 16, 6, C.OUT); px(W / 2 - 7, -4, 7, 5, C.WHITE); px(W / 2, -4, 7, 5, '#ece4cc');
+    for (let k = 0; k < 3; k++) { px(W / 2 - 6, -3 + k * 1.5, 5, 0.5, C.STEEL[1]); px(W / 2 + 1, -3 + k * 1.5, 5, 0.5, C.STEEL[1]); }
+    if (o.work && !o.still && (t * 1.2) % 1 < 0.25) px(W / 2 - 1, -6, 4, 6, C.WHITE);   // a page mid-turn
+    // a little potted herb on the left
+    px(6, -9, 5, 4, C.OUT); px(7, -8, 3, 3, '#b8643c'); px(6, -12, 5, 4, C.GRASS[2]); px(7, -13, 2, 2, C.GRASS[1]);
+    // the oil lamp on the right: dark frame, glass that glows when someone is at the table
+    const lx = W - 12;
+    px(lx - 1, -15, 7, 11, C.OUT); px(lx, -14, 5, 9, o.work ? '#ffd27a' : '#c8b48a');
+    px(lx + 2, -12, 1, 4, o.work ? '#fff4c8' : C.WOOD[2]); px(lx, -16, 5, 1, C.STEEL[0]); px(lx + 1, -18, 3, 2, C.STEEL[0]);
+    if (o.work) halo(lx + 2.5, -10, 14 + (o.still ? 0 : Math.sin(t * 6) * 0.8), 0.18);
+    // a stool tucked under the near edge
+    px(W / 2 - 5, H - 7, 10, 4, C.OUT); px(W / 2 - 4, H - 7, 8, 3, C.WOOD[2]); px(W / 2 - 4, H - 4, 1, 3, C.WOOD[0]); px(W / 2 + 3, H - 4, 1, 3, C.WOOD[0]);
+  }
+
+  /* -------------------------------------------------- CHEST OF DRAWERS (the files) ---- */
+  function dresser(x, y, w, h, o) {
+    OX = x; OY = y;
+    const W = w / U, H = h / U, t = o.still ? 0 : now / 1000;
+    const top = 2, bot = H - 2;
+    px(1, top - 1, W - 2, bot - top + 2, C.OUT);
+    px(2, top, W - 4, bot - top, C.WOOD[1]); px(2, top, W - 4, 3, C.WOOD[3]); px(2, top + 3, 1, bot - top - 3, C.WOOD[2]);
+    const n = Math.max(2, Math.floor((bot - top - 6) / 9)), dh = (bot - top - 6) / n;
+    for (let i = 0; i < n; i++) {
+      const dy = top + 5 + i * dh, open = (o.fired && i === 0) ? 2 : 0;
+      if (open) { px(4, dy, W - 8, 2, '#2a1c12'); px(6, dy + 0.5, 4, 1, C.WHITE); }   // drawer pulled out, a paper inside
+      px(4, dy + open, W - 8, dh - 2, C.WOOD[2]); px(4, dy + open, W - 8, 1, C.WOOD[3]);
+      px(W / 2 - 1, dy + open + dh / 2 - 2, 2, 2, C.RING[2]);
+    }
+    // a jar of wildflowers on top
+    px(W / 2 - 3, top - 6, 6, 6, C.OUT); px(W / 2 - 2, top - 5, 4, 5, '#9cc4c8');
+    const sway = o.still ? 0 : Math.round(Math.sin(t * 1.3));
+    px(W / 2 - 3 + sway, top - 9, 2, 2, C.PINK); px(W / 2 + 1, top - 10, 2, 2, '#f8d250'); px(W / 2 - 1, top - 11 + sway, 2, 2, C.WHITE);
+    px(W / 2 - 1, top - 8, 1, 3, C.GRASS[1]); px(W / 2 + 1, top - 8, 1, 3, C.GRASS[1]);
+  }
+
+  /* --------------------------------------------------- DIARY LECTERN (the memory) ---- */
+  function lectern(x, y, w, h, o) {
+    OX = x; OY = y;
+    const W = w / U, H = h / U, t = o.still ? 0 : now / 1000;
+    px(W / 2 - 2, 4, 4, H - 6, C.OUT); px(W / 2 - 1, 4, 2, H - 7, C.WOOD[1]);              // post
+    px(W / 2 - 6, H - 3, 12, 2, C.WOOD[0]);                                                  // foot
+    px(2, -4, W - 4, 9, C.OUT); px(3, -3, W - 6, 7, C.WOOD[2]); px(3, -3, W - 6, 1, C.WOOD[3]);   // slanted rest
+    px(5, -2, W / 2 - 5, 5, C.WHITE); px(W / 2, -2, W / 2 - 5, 5, '#ece4cc');                // the open diary
+    px(W / 2 - 1, -3, 1, 7, '#a83c3c');                                                      // ribbon
+    // a candle on the corner
+    px(W - 5, -9, 2, 5, '#f4ecd8'); const fl = o.still ? 0 : Math.round(Math.sin(t * 9) * 0.5);
+    px(W - 5 + fl, -11, 2, 2, o.work ? '#ffcc4c' : '#e8a040');
+    if (o.work) halo(W - 4, -10, 9, 0.2);
+    if (o.fired) for (let i = 0; i < 3; i++) px(6 + i * 4, -5 - ((now / 120 + i) % 4), 1, 1, '#fff4c8');   // remembered: a few motes rise
+  }
+
+  /* ---------------------------------------------------------- EASEL (the studio) ---- */
+  function easel(x, y, w, h, o) {
+    OX = x; OY = y;
+    const W = w / U, H = h / U, t = o.still ? 0 : now / 1000;
+    const cx = W / 2 - 4;
+    // tripod legs
+    for (let k = 0; k < H + 4; k++) { px(Math.round(cx - 8 + k * 0.25), k - 6, 1, 1, C.WOOD[1]); px(Math.round(cx + 8 - k * 0.25), k - 6, 1, 1, C.WOOD[1]); }
+    px(cx, -8, 1, H + 4, C.WOOD[0]);
+    // the canvas
+    const cw = 20, ch = 16, cx0 = cx - cw / 2, cy0 = -14;
+    px(cx0 - 1, cy0 - 1, cw + 2, ch + 2, C.OUT); px(cx0, cy0, cw, ch, '#f4ecd8');
+    // the painting comes in band by band while the agent works; complete once something has rendered
+    const p = o.fired ? 1 : (o.work ? (t * 0.25) % 1 : 1);
+    const rows = Math.round(ch * p);
+    for (let r = 0; r < rows; r++) {
+      const yy = cy0 + ch - 1 - r, f = 1 - (yy - cy0) / ch;
+      const col = f < 0.3 ? '#5a9c48' : f < 0.45 ? '#84b858' : '#9ccce4';
+      px(cx0, yy, cw, 1, col);
+    }
+    if (rows > ch * 0.7) { px(cx0 + cw - 6, cy0 + 2, 3, 3, '#f8d250'); }                     // the sun, last
+    px(cx0 - 2, cy0 + ch + 1, cw + 4, 2, C.WOOD[2]);                                          // the ledge
+    // paint pots on a little stool beside it
+    const sx = W - 12, sy = H - 12;
+    px(sx - 1, sy - 1, 11, 4, C.OUT); px(sx, sy, 9, 3, C.WOOD[2]); px(sx + 1, sy + 3, 1, 5, C.WOOD[0]); px(sx + 7, sy + 3, 1, 5, C.WOOD[0]);
+    [['#d8504a', 0], ['#4a86c8', 3], ['#f8d250', 6]].forEach(([c, dx]) => { px(sx + dx, sy - 3, 3, 3, C.OUT); px(sx + dx + 0.5, sy - 2.5, 2, 2, c); });
+    if (o.work && !o.still) halo(cx, cy0 + ch / 2, 16, 0.08 + 0.05 * Math.sin(t * 4));
+  }
+
   function skin(id, fn) {
     const F = PropSprites._F;
     for (const k of Object.keys(F)) if (k === id || k.indexOf(id + ':') === 0) F[k] = (x, y, w, h, o) => { if (ctx) fn(x, y, w, h, o || {}); };
   }
   skin('comms_dish', pond);
   skin('workbench', chopping);
+  skin('desk', table);
+  skin('war_intelcab', dresser);
+  skin('gigs_servercart', lectern);
+  skin('studio', easel);
 })();
