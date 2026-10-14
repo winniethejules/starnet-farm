@@ -8,10 +8,10 @@
         "y2": 10
       }
     ],
-    "floorMat": "resin",
-    "floorStyle": "hull",
-    "wallMat": "panelled",
-    "hullStyle": "bone"
+    "floorMat": null,
+    "floorStyle": "honey",
+    "wallMat": null,
+    "hullStyle": null
   },
   "props": [
     {

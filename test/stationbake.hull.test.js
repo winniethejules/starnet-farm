@@ -212,13 +212,15 @@ for (const mid of HULLS) {
 
 /* ---------- the model side: the third axis behaves like the other two ---------- */
 
+// FARM FORK: the default shell is clapboard (white boards) instead of the bare station shell, which stays choosable
+const DEF = 'clapboard', DEF_TONE = WorldModel.FLOOR_STYLES.white.base;
 const st = WorldModel.create();
 const room = st.addRoom({ kind: 'lab', rect: { x1: 22, y1: 0, x2: 35, y2: 9 } });
 A.ok(room.ok, 'test room placed');
 const R = room.id;
 
-A.eq(st.hullMatOfRoom(R), 'station', 'a fresh room wears the station shell');
-A.eq(st.projectGeometry().hullBaseOf(R), null, '...at the shell’s own tone — null, not a stand-in colour');
+A.eq(st.hullMatOfRoom(R), DEF, 'a fresh room wears the default shell');
+A.eq(st.projectGeometry().hullBaseOf(R), DEF_TONE, '...at the tone it was drawn for');
 
 A.ok(st.setHull(R, { mat: 'timber' }).ok, 'setHull clads a room in timber');
 A.eq(st.hullMatOfRoom(R), 'timber', 'the material stuck');
@@ -229,8 +231,10 @@ A.eq(st.projectGeometry().hullBaseOf(R), WorldModel.FLOOR_STYLES.walnut.base, '.
 // normalization: never serialize a redundant value, so an untouched doc round-trips unchanged
 A.ok(st.setHull(R, { mat: 'timber', style: 'walnut' }).ok, 'picking the material’s own hue is accepted');
 A.eq(st.doc().rooms[R].hullStyle, null, '...and normalizes to null rather than pinning the suggestion');
-A.ok(st.setHull(R, { mat: 'station' }).ok, 'clading back to station is accepted');
+A.ok(st.setHull(R, { mat: DEF }).ok, 'clading back to the default is accepted');
 A.eq(st.doc().rooms[R].hullMat, null, '...and normalizes to null, so the doc looks pre-axis again');
+A.ok(st.setHull(R, { mat: 'station' }).ok && st.hullMatOfRoom(R) === 'station', 'the bare station shell is still choosable');
+st.setHull(R, { mat: DEF });
 
 A.eq(st.setHull(R, { mat: 'no-such' }).error, 'BAD_MAT', 'an unknown shell material is rejected');
 A.eq(st.setHull(R, { style: 'no-such' }).error, 'BAD_STYLE', 'an unknown shell colour is rejected');
@@ -241,7 +245,7 @@ const seq = st.canUndo();
 A.ok(st.setHull(R, { mat: 'brick', style: 'crimson' }).ok, 'shell re-clad, hue and material together');
 A.eq(st.hullMatOfRoom(R), 'brick', 'brick took');
 A.ok(st.undo().ok !== false, 'undo runs');
-A.eq(st.hullMatOfRoom(R), 'station', 'ONE undo reverses BOTH axes — never half a re-clad');
+A.eq(st.hullMatOfRoom(R), DEF, 'ONE undo reverses BOTH axes — never half a re-clad');
 A.ok(seq === seq, 'undo availability unchanged in shape');
 
 // a no-op must not burn an undo slot (the trap every mutator here has had at least once)
@@ -256,8 +260,8 @@ A.eq(JSON.stringify(st.doc().rooms[R]), before, '...and changes nothing');
 const other = st.addRoom({ kind: 'factory', rect: { x1: 0, y1: 14, x2: 15, y2: 22 } });
 A.ok(other.ok, 'neighbour placed');
 st.setHull(R, { mat: 'curtain' });
-A.eq(st.hullMatOfRoom(other.id), 'station', 'the neighbour keeps its own shell');
-A.eq(st.projectGeometry().hullMatOf(other.id), 'station', '...all the way through to the bake');
+A.eq(st.hullMatOfRoom(other.id), DEF, 'the neighbour keeps its own shell');
+A.eq(st.projectGeometry().hullMatOf(other.id), DEF, '...all the way through to the bake');
 
 /* legacy docs: a room written before this axis carries no hull keys at all and must deserialize
    as the station shell rather than as an unknown material */
@@ -265,8 +269,8 @@ const legacyDoc = JSON.parse(JSON.stringify(st.doc()));
 for (const id of legacyDoc.order) { delete legacyDoc.rooms[id].hullMat; delete legacyDoc.rooms[id].hullStyle; }
 const revived = WorldModel.deserialize(legacyDoc);
 for (const id of legacyDoc.order) {
-  A.eq(revived.hullMatOfRoom(id), 'station', 'a pre-axis room revives wearing the station shell (' + id + ')');
-  A.eq(revived.projectGeometry().hullBaseOf(id), null, '...at the shell’s own tone (' + id + ')');
+  A.eq(revived.hullMatOfRoom(id), DEF, 'a pre-axis room revives wearing the default shell (' + id + ')');
+  A.eq(revived.projectGeometry().hullBaseOf(id), DEF_TONE, '...at its own tone (' + id + ')');
 }
 
 // Retired exterior insulation upgrades safely, without repainting a user's interior.

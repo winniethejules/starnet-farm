@@ -11915,6 +11915,8 @@ const PropSprites = (() => {
     if (s) return { mount: s.mount || null, stack: !!s.stack, surface: !!s.surface, flat: !!s.flat, footprintMigration: s.footprintMigration };
     return USER_ID.test(String(t || '')) ? { mount: null, stack: false, surface: false, flat: false } : null;
   }
+  // FARM FORK: farm art (farmprops.js) for a few capability props, fed this module's live canvas and clock.
+  if (typeof FarmProps !== 'undefined') FarmProps.install(F, () => ctx, () => now);
   if (typeof PropRemaster !== 'undefined') {
     for (const c of [...CATALOG,{id:'seatchair',artId:'chair'}]) {
       for (const facing of ['s','n','e','w']) {

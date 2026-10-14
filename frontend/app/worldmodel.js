@@ -338,7 +338,10 @@ const WorldModel = (() => {
      geometry arriving without one). 2026-07-25: moved off `plating` onto `bulkhead` — every room
      carries wallMat null, so this reaches stations already built, deliberately, for the same reason
      the deck default moved. `plating` stays in the palette as the classic. */
-  const wallMatOfRoom = rm => (rm && WALL_MATERIALS[rm.wallMat]) ? rm.wallMat : 'wainscot';   // FARM FORK: was 'bulkhead'
+  // FARM FORK: the farm defaults live in ONE place each, so the setters' "picking the default stores null" rule
+  // follows them (it was hard-coded to the station's old names and made those materials impossible to pick).
+  const DEFAULT_WALL_MAT = 'wainscot', DEFAULT_HULL_MAT = 'clapboard';   // were 'bulkhead' / 'station'
+  const wallMatOfRoom = rm => (rm && WALL_MATERIALS[rm.wallMat]) ? rm.wallMat : DEFAULT_WALL_MAT;
   /* A CORRIDOR'S WALL IS THE STATION'S BULKHEAD, NOT ITS DECKING (2026-07-29, Andrew: "light
      doesn't seem to reflect on the walls of the hallway"). Following the deck is right for a ROOM —
      wall and floor are the same room's finish — but a corridor's floor style is DECKING #2c2924,
@@ -359,7 +362,7 @@ const WorldModel = (() => {
   };
   /* THE AUTHORITY on a room's exterior shell (stationbake's HULL_RECIPES fallback is only for
      geometry arriving without one). Defaults to `station` so nothing already built moves. */
-  const hullMatOfRoom = rm => rm && rm.hullMat === 'insulation' ? 'thermal' : (rm && HULL_MATERIALS[rm.hullMat]) ? rm.hullMat : 'clapboard';   // FARM FORK: was 'station'
+  const hullMatOfRoom = rm => rm && rm.hullMat === 'insulation' ? 'thermal' : (rm && HULL_MATERIALS[rm.hullMat]) ? rm.hullMat : DEFAULT_HULL_MAT;
   /* A HULL'S HUE, or null for "the shell's own tone". Explicit paint wins; otherwise the material's
      own suggested hue (see the HULL_MATERIALS note on why this binds in the model and the wall
      axis's `suggest` does not). A CORRIDOR follows the room it connects only in spirit — it takes
@@ -400,7 +403,7 @@ const WorldModel = (() => {
   function freshDoc(createdAt) {
     const doc = {
       schema: 'starnet.station', version: STATION_VERSION, _nid: 1,
-      meta: { name: 'STARNET STATION', createdAt: createdAt || stationId(), tier: 0, spawnRoomId: null, trunkRoomId: null },
+      meta: { name: 'STARNET STATION', createdAt: createdAt || stationId(), tier: 0, spawnRoomId: null, trunkRoomId: null, farmLook: 1 },   // FARM FORK: farmLook, see migrate
       rooms: {}, order: [], props: [], belts: {}, edges: []
     };
     // seed the shabby starter HAB (18×11 floor — the v7 / world.js starter room), so a new
@@ -1469,7 +1472,7 @@ const WorldModel = (() => {
       // picking the room's own floor hue IS "follow" — normalize so it never serializes redundantly
       const nextStyle = wantStyle === undefined ? (rm.wallStyle || null)
         : (wantStyle === rm.floorStyle ? null : wantStyle);
-      const nextMat = wantMat === undefined ? (rm.wallMat || null) : (wantMat === 'plating' ? null : wantMat);
+      const nextMat = wantMat === undefined ? (rm.wallMat || null) : (wantMat === DEFAULT_WALL_MAT ? null : wantMat);
       if ((rm.wallStyle || null) === nextStyle && (rm.wallMat || null) === nextMat) return { ok: true };
       snapshot();
       rm.wallStyle = nextStyle;
@@ -1490,10 +1493,10 @@ const WorldModel = (() => {
       const wantMat = o.mat == null ? undefined : o.mat;
       if (wantStyle !== undefined && wantStyle !== null && !FLOOR_STYLES[wantStyle]) return fail('BAD_STYLE', 'unknown hull colour');
       if (wantMat !== undefined && !HULL_MATERIALS[wantMat]) return fail('BAD_MAT', 'unknown hull material');
-      const nextMat = wantMat === undefined ? (rm.hullMat || null) : (wantMat === 'station' ? null : wantMat);
+      const nextMat = wantMat === undefined ? (rm.hullMat || null) : (wantMat === DEFAULT_HULL_MAT ? null : wantMat);
       // picking the material's OWN suggested hue IS "follow" — normalize so it never serializes
       // redundantly (and so a later catalog re-tune reaches rooms that never chose a tone).
-      const suggested = (HULL_MATERIALS[nextMat || 'station'] || {}).suggest || null;
+      const suggested = (HULL_MATERIALS[nextMat || DEFAULT_HULL_MAT] || {}).suggest || null;
       const nextStyle = wantStyle === undefined ? (rm.hullStyle || null)
         : (wantStyle === suggested ? null : wantStyle);
       if ((rm.hullStyle || null) === nextStyle && (rm.hullMat || null) === nextMat) return { ok: true };
@@ -3562,6 +3565,24 @@ const WorldModel = (() => {
     };
   }
 
+  /* FARM FORK: a ONE-TIME farm look for stations saved before the farm fork. Only what nobody chose moves: a floor
+     still on its kind's old station hue takes the farm hue, and the untouched old starter home (resin deck,
+     panelled walls, bone hull) becomes the farmhouse. Colours and materials picked by hand stay. The meta stamp
+     makes it run once, so a station hue picked later is never undone; fresh docs are born stamped. */
+  const STATION_KIND_FLOOR = { hab: 'hull', bridge: 'cobalt', lab: 'sterile', factory: 'rust', quarters: 'verdant', storage: 'rust', corridor: 'corridor' };
+  function farmLook(doc) {
+    if (doc.meta.farmLook) return;
+    for (const id of doc.order) {
+      const rm = doc.rooms[id], k = ROOM_KINDS[rm.kind];
+      if (!k) continue;
+      if (rm.floorStyle === STATION_KIND_FLOOR[rm.kind]) rm.floorStyle = k.floor;
+      if (rm.floorMat === 'resin' && rm.wallMat === 'panelled' && rm.hullStyle === 'bone' && !rm.hullMat) {
+        rm.floorMat = null; rm.wallMat = null; rm.hullStyle = null;
+      }
+    }
+    doc.meta.farmLook = 1;
+  }
+
   /* forward-only migration ladder for serialized docs (none yet — v1 is current) */
   function migrate(doc) {
     if (!doc || typeof doc !== 'object') return doc;
@@ -3633,6 +3654,7 @@ const WorldModel = (() => {
        reload and the latches it keys would be lost instead of merely shared. Never overwrites a
        stamp that is already there. */
     if (!doc.meta.createdAt) doc.meta.createdAt = stationId();
+    farmLook(doc);   // FARM FORK
     if (typeof doc._nid !== 'number') doc._nid = doc.order.length + 1;
     for (const p of doc.props) if (!p.id) p.id = 'p' + (doc._nid++);   // backfill ids for legacy/partial props
     // spawnRoomId must point at a live non-corridor room (or null) so removeRoom's guard stays meaningful
@@ -3656,11 +3678,9 @@ const WorldModel = (() => {
       const room = doc.rooms[doc.meta.spawnRoomId];
       room.rects = [{ x1: 0, y1: 0, x2: 17, y2: 10 }];
       room.name = 'HOME';
-      // FARM FORK: the starter home is a farmhouse (was resin deck, panelled walls, bone hull)
+      // FARM FORK: the starter home is a farmhouse (was resin deck, panelled walls, bone hull). The hab's own
+      // farm defaults (honey plank deck, wainscot walls, clapboard hull) already are one, so nothing is pinned.
       room.floorStyle = 'honey';
-      room.floorMat = 'plank';
-      room.wallMat = 'wainscot';
-      room.hullMat = 'clapboard';
       doc.props = [
         // The five essentials are real floor grants. Keep the desk unassigned so
         // ensureWorkstation adopts it for the new Commander on the normal boot path.

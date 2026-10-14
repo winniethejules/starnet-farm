@@ -9,6 +9,7 @@ draw at any integer zoom.
   python pixelize.py in.png out.png [--width 84 | --cell 12.4] [--colors 24] [--preview 6]
 """
 import argparse
+import sys
 import numpy as np
 from PIL import Image
 
@@ -21,10 +22,25 @@ BG = None   # the raw image's own flat background, read off its border (the mode
 def is_key(rgb):
     # magenta and its blurred fringe: strong red + blue, weak green
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    k = (r > 150) & (b > 150) & (g < 110) & (np.abs(r - b) < 90)
-    if BG is not None:
-        k |= np.abs(rgb - BG).sum(axis=-1) < 45
-    return k
+    return (r > 150) & (b > 150) & (g < 110) & (np.abs(r - b) < 90)
+
+
+def background_mask(img):
+    """Magenta anywhere, plus the image's own flat background colour (BG) only where it is connected to the border.
+    The same colour INSIDE the art (a white mailbox flag on a white background, a dark window on a black one) stays."""
+    key = is_key(img)
+    if BG is None:
+        return key
+    close = np.abs(img - BG).sum(axis=-1) < 45
+    m = np.zeros_like(close)
+    m[0, :] = close[0, :]; m[-1, :] = close[-1, :]; m[:, 0] = close[:, 0]; m[:, -1] = close[:, -1]
+    while True:                                   # grow from the border through background-coloured pixels
+        d = m.copy()
+        d[1:] |= m[:-1]; d[:-1] |= m[1:]; d[:, 1:] |= m[:, :-1]; d[:, :-1] |= m[:, 1:]
+        d &= close
+        if np.array_equal(d, m):
+            return key | m
+        m = d
 
 
 def border_background(img):
@@ -69,16 +85,29 @@ def main():
     ap.add_argument('--colors', type=int, default=24)
     ap.add_argument('--preview', type=int, default=0)
     a = ap.parse_args()
+    if a.width is not None and not 1 <= a.width <= 1024:
+        ap.error('--width must be 1..1024')
+    if a.cell is not None and not 1.0 < a.cell <= 256:
+        ap.error('--cell must be above 1 and at most 256')
+    if not 2 <= a.colors <= 256:
+        ap.error('--colors must be 2..256')
+    if not 0 <= a.preview <= 32:
+        ap.error('--preview must be 0..32')
 
     img = np.asarray(Image.open(a.src).convert('RGB')).astype(np.float32)
     global BG
     BG = border_background(img)
+    key = background_mask(img)
+    ys, xs = np.where(~key)
+    if not ys.size:
+        sys.exit(f'pixelize: {a.src} has no foreground (the whole image is background)')
     if a.width:
         # crop to the art (everything that is not key), then size the cell from the target width
-        nk = ~is_key(img)
-        ys, xs = np.where(nk)
         img = img[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        key = key[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
         a.cell = img.shape[1] / a.width
+        if a.cell < 1:
+            sys.exit(f'pixelize: --width {a.width} is wider than the art itself ({img.shape[1]} px); nothing to downsample')
     H, W, _ = img.shape
     ex = change_positions(img, 1).sum(axis=0).astype(np.float64)     # edges between columns
     ey = change_positions(img, 0).sum(axis=1).astype(np.float64)     # edges between rows
@@ -95,8 +124,9 @@ def main():
         px_ = estimate_cell_phase(ex, c); py_ = estimate_cell_phase(ey, c)
 
     cols = int(round((W - px_) / cx)); rows = int(round((H - py_) / cy))
+    if cols < 1 or rows < 1:
+        sys.exit(f'pixelize: {a.src} is smaller than one cell ({W}x{H} px, cell {cx:.2f})')
     out = np.zeros((rows, cols, 4), dtype=np.uint8)
-    key = is_key(img)
     for j in range(rows):
         y0 = py_ + j * cy; ys = slice(int(y0 + cy * 0.3), max(int(y0 + cy * 0.3) + 1, int(y0 + cy * 0.7)))
         for i in range(cols):
@@ -109,10 +139,12 @@ def main():
             out[j, i, 3] = 255
 
     # the model sometimes ignores the magenta key and paints a flat colour instead: if most of the border is one
-    # colour, flood it away from the edges (only where it touches the edge, so the same colour inside survives)
+    # colour, flood it away from the edges (only where it touches the edge, so the same colour inside survives).
+    # Only when no flat background was found at full resolution: then background_mask already removed it, the
+    # sprite is cropped to the art, and its border is the art's own outline, which must not be flooded.
     border = np.concatenate([out[0], out[-1], out[:, 0], out[:, -1]])
     opaque = border[border[:, 3] > 0][:, :3].astype(np.int32)
-    if len(opaque) > 0.6 * len(border):
+    if BG is None and len(opaque) > 0.6 * len(border):
         ref = np.median(opaque, axis=0)
         close = (np.abs(out[..., :3].astype(np.int32) - ref).sum(axis=2) < 60) & (out[..., 3] > 0)
         if close[[0, -1], :].mean() > 0.6 or close[:, [0, -1]].mean() > 0.6:
@@ -127,8 +159,9 @@ def main():
     sprite = Image.fromarray(out, 'RGBA')
     alpha = sprite.getchannel('A')
     bbox = alpha.getbbox()
-    if bbox:
-        sprite = sprite.crop(bbox); alpha = sprite.getchannel('A')
+    if not bbox:
+        sys.exit(f'pixelize: {a.src} came out empty after sampling')
+    sprite = sprite.crop(bbox); alpha = sprite.getchannel('A')
     # snap to a small palette (opaque pixels only), then restore the hard alpha
     rgb = sprite.convert('RGB').quantize(colors=a.colors, method=Image.Quantize.MEDIANCUT).convert('RGB')
     sprite = rgb.convert('RGBA'); sprite.putalpha(alpha)

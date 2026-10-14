@@ -7,6 +7,8 @@ const start = src.indexOf('  const ROOM_LIGHTING_STEPS =');
 const end = src.indexOf('  // TEXT SIZE steps', start);
 assert.ok(start >= 0 && end > start);
 const bake = require('../frontend/app/stationbake.js');
+// FARM FORK: the farm daylight (farmlight.js) loads right after stationbake.js in the app
+new Function('StationBake', fs.readFileSync(path.join(__dirname, '../frontend/app/farmlight.js'), 'utf8'))(bake);
 const original = { ...bake.LIGHT };
 let rebakes = 0;
 const api = new Function('StationBake', 'World', src.slice(start, end) +
@@ -33,7 +35,7 @@ for (const level of ['medium', 'high']) {
 assert.equal(rebakes, 2, 'both brightness changes reach the renderer');
 api.apply('low');
 assert.deepEqual(bake.LIGHT, original, 'LOW restores the exact approved light controls');
-assert.match(src, /roomLighting: 'low'/);
+assert.match(src, /roomLighting: 'medium'/);   // FARM FORK: new farms start on MEDIUM daylight
 assert.match(src, /applyRoomLighting\(s\.roomLighting\)/);
 assert.match(src, /roomLighting: resolveRoomLighting\(store\.settings\.roomLighting\)/, 'backup includes lighting');
 assert.match(src, /applyRoomLighting\(s\.roomLighting\); save\(\)/, 'selection is applied and persisted');

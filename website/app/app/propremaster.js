@@ -368,6 +368,7 @@ const PropRemaster = (() => {
       const queue=[];
       for(const [id,p]of Object.entries(manifest.props)){
         if(!/^[A-Za-z0-9_]+$/.test(id)||!p||!p.views)continue;
+        if(typeof FarmProps!=='undefined'&&FarmProps.owns(id))continue; // FARM FORK: farmprops.js draws these ids
         for(const [view,v]of Object.entries(p.views))if(['s','n','e','w'].includes(view))queue.push([id+':'+view,v]);
       }
       if(queue.length>640)throw Error('too many authored views');

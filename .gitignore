@@ -216,3 +216,6 @@ sidecar/mcp/google-client.json
 src-tauri/frontend-embed/
 # user-study-loop live proof scratch (seeded workspace + chrome profile). Never committed.
 dev/.scratch-workspace-usl-proof/
+
+# farm fork: licensed third-party art (Craftpix) may be used locally but never committed
+frontend/assets/farm/vendor/

@@ -1,4 +1,4 @@
-/* STARNET (farm fork) — farmprops.js : farm art for the station's capability props.
+/* STARNET (farm fork), farmprops.js: farm art for the station's capability props.
 
    The capability model is untouched: a prop still IS its capability (the dish still grants the web, the workbench
    still grants shell + verify). Only the picture changes, so the agents' real work reads as farm chores:
@@ -10,19 +10,18 @@
      gigs_servercart -> DIARY LECTERN     memory = the diary, a candle while it writes
      studio          -> EASEL             images = a painting filling in band by band
 
-   How it hooks in WITHOUT editing propsprites.js: PropSprites exposes its draw-fn table as `_F` and takes its canvas
-   through setCtx/setNow. We wrap those two setters to keep our own handle on the context, then replace the draw fns
-   for these ids (every facing). Loaded right after propsprites.js, before anything is drawn.
+   How it hooks in: this file loads BEFORE propremaster.js and propsprites.js and only declares FarmProps. Two
+   one-line FARM FORK hooks pick it up:
+     - propremaster.js skips these ids when it loads the authored art manifest, so no space-art foreground,
+       hit mask, screen emitter or surface mount is left behind on top of the farm picture;
+     - propsprites.js calls FarmProps.install(F, getCtx, getNow) right before its remaster wrapper, so every
+       draw reads the module's CURRENT canvas and clock. PropSprites swaps its canvas internally (shadow masks,
+       idle-art caches), so a canvas captured from setCtx() would paint the wrong surface.
 
    Art is drawn on a HALF-PIXEL grid (u = 0.5 world px) so it sits at the same density as the remastered props. */
 'use strict';
-(function () {
-  if (typeof PropSprites === 'undefined' || !PropSprites._F || !PropSprites.setCtx) return;
-
+const FarmProps = (function () {
   let ctx = null, now = 0;
-  const setCtx0 = PropSprites.setCtx, setNow0 = PropSprites.setNow;
-  PropSprites.setCtx = c => { ctx = c; return setCtx0(c); };
-  PropSprites.setNow = t => { now = t; return setNow0(t); };
 
   const U = 0.5;
   const C = {
@@ -253,14 +252,25 @@
     if (o.work && !o.still) halo(cx, cy0 + ch / 2, 16, 0.08 + 0.05 * Math.sin(t * 4));
   }
 
-  function skin(id, fn) {
-    const F = PropSprites._F;
-    for (const k of Object.keys(F)) if (k === id || k.indexOf(id + ':') === 0) F[k] = (x, y, w, h, o) => { if (ctx) fn(x, y, w, h, o || {}); };
+  const ART = { comms_dish: pond, workbench: chopping, desk: table, war_intelcab: dresser, gigs_servercart: lectern, studio: easel };
+  const owns = id => Object.prototype.hasOwnProperty.call(ART, id);
+
+  // Replace the draw fn for every facing of each farm id (`id` and `id:<facing>`). getCtx/getNow are read on
+  // EVERY call: the canvas can change between the world pass, a shadow mask and an idle-art cache.
+  function install(F, getCtx, getNow) {
+    for (const k of Object.keys(F)) {
+      const id = k.split(':')[0];
+      if (!owns(id)) continue;
+      const fn = ART[id];
+      F[k] = (x, y, w, h, o) => {
+        const c = getCtx(); if (!c) return;
+        const prevCtx = ctx, prevNow = now;
+        ctx = c; now = getNow() || 0;
+        try { fn(x, y, w, h, o || {}); } finally { ctx = prevCtx; now = prevNow; }
+      };
+    }
   }
-  skin('comms_dish', pond);
-  skin('workbench', chopping);
-  skin('desk', table);
-  skin('war_intelcab', dresser);
-  skin('gigs_servercart', lectern);
-  skin('studio', easel);
+
+  return { ids: Object.freeze(Object.keys(ART)), owns, install };
 })();
+if (typeof module !== 'undefined' && module.exports) module.exports = FarmProps;

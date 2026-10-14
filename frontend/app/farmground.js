@@ -357,8 +357,9 @@
       if (yd) {
         const f = yd.fence, gate = yd.gate;
         // flat things first (z -1): path, field, pond
-        if (pools.path) for (let wy = gate.y + 4; wy < y1 + 20; wy += 13) {
-          if (wy < y0 - 20) continue;
+        // stones every 13 px from the gate; start at the first one in view (same phase) instead of walking there
+        const p0 = gate.y + 4, k0 = Math.max(0, Math.ceil((y0 - 20 - p0) / 13));
+        if (pools.path) for (let wy = p0 + k0 * 13; wy < y1 + 20; wy += 13) {
           push(pick('path', h01(0, wy | 0, 70)), MEADOW.pathX(yd, wy), wy);
         }
         if (pools.field && x1 > yd.field.x && x0 < yd.field.x + yd.field.w) push(pools.field[0], yd.field.x, yd.field.y);

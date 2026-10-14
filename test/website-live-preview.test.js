@@ -56,10 +56,11 @@ const starterRevision = 'starter-' + require('crypto').createHash('sha256')
 starter.props.find(p => p.t === 'desk').agentId = upgradedSave.agent.id;
 A.eq(upgradedSave.station, starter,
   'the complete website layout comes from the current product starter factory, including materials and all eight props');
-A.eq(upgradedRoom.floorStyle, 'hull', 'the website demo uses the standard starter floor style');
-A.eq(upgradedRoom.floorMat, 'resin', 'the website demo uses the actual starter floor material');
-A.eq(upgradedRoom.wallMat, 'panelled', 'the website demo uses the actual starter wall material');
-A.eq(upgradedRoom.hullStyle, 'bone', 'the website demo uses the actual starter hull style');
+// FARM FORK: the starter home is the farmhouse: a honey deck, and plank / wainscot / clapboard as the hab's own defaults (null)
+A.eq(upgradedRoom.floorStyle, 'honey', 'the website demo uses the standard starter floor style');
+A.eq(upgradedRoom.floorMat, null, 'the website demo uses the actual starter floor material');
+A.eq(upgradedRoom.wallMat, null, 'the website demo uses the actual starter wall material');
+A.eq(upgradedRoom.hullStyle, null, 'the website demo uses the actual starter hull style');
 A.eq(upgradedRoom.hullMat, null, 'the website demo uses the standard station hull material');
 A.eq(upgraded['starnet.website.demo.rev'], starterRevision,
   'a layout-derived revision moves returning visitors off obsolete starter saves automatically');

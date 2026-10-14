@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Farm Mockup</title>
+<!-- farm fork design mockup (not product code). Serve the repo root, e.g. `python3 -m http.server 8790`, then open /design/mockups/farm-mockup.html -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -69,11 +70,13 @@
   footer { grid-column: 1 / -1; display: flex; justify-content: center; align-items: center; gap: 6px; border-top: 4px solid #3a2414; }
   .slot { width: 76px; height: 72px; display: grid; place-items: center; font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; line-height: 1; }
   .slot img { width: 32px; height: 32px; display: block; margin: 0 auto 2px; }
+  .mock { background: #f4d27a; color: #3a2414; font-weight: 700; white-space: nowrap; }
 </style>
 </head>
 <body>
 <header class="woodbar">
   <div class="logo">StarNet <small>farm</small></div>
+  <div class="chip frame mock" title="Design mockup: every villager, task, cost and message here is made up">MOCKUP · simulated data</div>
   <div class="spacer"></div>
   <div class="chip frame"><img data-icon="sun" alt="">Tue 14 · Autumn</div>
   <div class="chip frame" id="clock">2:40 pm</div>
@@ -118,11 +121,11 @@
   <div class="slot frame-slot"><div><img data-icon="gear" alt="">Settings</div></div>
 </footer>
 
-<script src="app/terrain.js"></script>
-<script src="app/farmground.js"></script>
+<script src="../../frontend/app/terrain.js"></script>
+<script src="../../frontend/app/farmground.js"></script>
 <script>
 'use strict';
-const ART = 'assets/farm/';
+const ART = '../../frontend/assets/farm/';
 const OUT = '#3a2414';
 
 /* ------------------------------------------------------------ pixel UI frames ---- */
@@ -347,7 +350,7 @@ function chimneySmoke(x, y) {                     // pixel puffs, stepped not fa
 
 function draw() {
   const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
-  if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false;
   g.fillStyle = MEADOW.base; g.fillRect(0, 0, cv.width, cv.height);
   const s = Math.max(1, Math.round(zoom * dpr));                 // integer device pixels per art pixel

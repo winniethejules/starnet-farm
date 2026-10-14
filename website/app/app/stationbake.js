@@ -121,7 +121,7 @@ const StationBake = (() => {
   // default is not what you see in game. WorldModel.wallMatOfRoom is the authority — change both.
   const wallMatOf = z => {
     const m = G && G.wallMatOf ? G.wallMatOf(z) : null;
-    return WALL_RECIPES[m] ? m : 'bulkhead';
+    return WALL_RECIPES[m] ? m : 'wainscot';   // FARM FORK: was 'bulkhead'
   };
 
   /* live-tunable WALL HEIGHT — same contract as LIGHT below: the CRT LAB writes these and
@@ -537,7 +537,7 @@ const StationBake = (() => {
   // WorldModel.hullMatOfRoom is the authority — change both.
   const hullMatOf = z => {
     const m = (G && G.hullMatOf) ? G.hullMatOf(z) : null;
-    return m === 'insulation' ? 'thermal' : HULL_RECIPES[m] ? m : 'station';
+    return m === 'insulation' ? 'thermal' : HULL_RECIPES[m] ? m : 'clapboard';   // FARM FORK: was 'station'
   };
   // two footprints share a skirt only if they share a SKIN — see the group note in bakeHullExtrusion
   const hullKeyOf = z => { const p = hullPal(z); return hullMatOf(z) + '|' + p.base; };
@@ -970,7 +970,7 @@ const StationBake = (() => {
      point: the default deck is the one surface every player sees and it had aged. */
   // FALLBACK ONLY — projected geometry always carries matOf, so this map is not what you see in
   // game. WorldModel.ROOM_KINDS[kind].mat is the authority; keep the two in step.
-  const MAT_BY_KIND = { hab: 'spine', corridor: 'spine', bridge: 'panel', lab: 'tile', factory: 'tread', storage: 'tread', quarters: 'soft' };
+  const MAT_BY_KIND = { hab: 'plank', corridor: 'plank', bridge: 'parquet', lab: 'tile', factory: 'plank', storage: 'plank', quarters: 'parquet' };   // FARM FORK: keep in step with worldmodel ROOM_KINDS
   const MAT_PITCH = { alloy: [4, 3], plate: [2, 2], panel: [4, 1], tile: [2, 2], tread: [2, 2], soft: [3, 2], grate: [1, 1], hex: [1, 1], plank: [5, 1], turf: [1, 1], spine: [4, 3], diamond: [1, 1], resin: [4, 4], ceramic: [3, 3], cargo: [3, 2], runner: [2, 2], treadway: [3, 2], meshway: [3, 3], basalt: [3, 2], parquet: [3, 3], rubber: [2, 2], slotted: [3, 2], terrazzo: [4, 4], octile: [2, 2], flightdeck: [2, 2], lunar: [4, 2], maggrid: [2, 2], habitat: [2, 2] };
   const MAT_NO_WEAR = { tile: 1, grate: 1, turf: 1, ceramic: 1, resin: 1 };   // gloss, open mesh, growth, and a poured or glazed floor take no boot scuffs   // gloss, open mesh and growth don't take boot scuffs
   // the room's deck material — the model's per-room choice when it has one, else the kind default

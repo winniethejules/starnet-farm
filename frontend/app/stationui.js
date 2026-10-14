@@ -115,7 +115,10 @@ const StationUI = typeof document === 'undefined' ? {} : (() => {
   // Raise overall room exposure without changing the distribution of its lights.
   // Existing saves retain their chosen level; missing values start at LOW.
   const ROOM_LIGHTING_STEPS = [
-    // FARM FORK: daylight (the station shipped 0.82 / 0.72 / 0.62, tuned for deep space)
+    // FARM FORK: daylight (the station shipped 0.82 / 0.72 / 0.62, tuned for deep space). A saved level keeps its
+    // NAME, so an existing station on MEDIUM gets the brighter farm MEDIUM. The farm defaults() above (roomLighting
+    // medium, flicker off, crtGlass dull, staticLevel 0, backdrop meadow) only reach new installs, keys a save
+    // lacks, and a settings reset; every value a player already saved is kept.
     ['low', 'LOW', 0.52],
     ['medium', 'MEDIUM', 0.42],
     ['high', 'HIGH', 0.32],

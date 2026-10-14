@@ -311,7 +311,7 @@ for (const c of T.catalog.filter(c => T.presetKits(c.id).length)) {
   const a = SB.apply(st, r.plan, renv);
   A.ok(a.ok, 'and applies');
   const h = st.rooms()[0];
-  A.eq([h.name, h.floorStyle, h.floorMat], ['QUARTERS', 'walnut', 'plank'], 'the room is restyled');
+  A.eq([h.name, h.floorStyle, h.floorMat || M.ROOM_KINDS[h.kind].mat], ['QUARTERS', 'walnut', 'plank'], 'the room is restyled');   // FARM FORK: plank is the hab default, stored as null
   A.eq(st.props().length, M.create(JSON.parse(before)).props().length, 'nothing is added or removed');
   A.ok(st.undo().ok); A.eq(snap(st), before, 'one undo restores the style and the name');
   for (const [req, re] of [[{ room: 'HOME' }, /Nothing would change/], [{ room: 'Mars', name: 'X' }, /There is no room called "Mars"/], [{ room: 'HOME', floorStyle: 'lava' }, /floorStyle must be one of/], [{ room: 'HOME', props: 1 }, /only changes a room's floor, material or name/]])
@@ -321,8 +321,8 @@ for (const c of T.catalog.filter(c => T.presetKits(c.id).length)) {
 {
   const st = fresh(), before = snap(st);
   const r = SB.planRestyle(st.serialize(), { room: 'HOME', type: 'Foundry' }, renv);
-  A.ok(r.ok && /^Restyle HOME with the FOUNDRY floor: floor \w+ → rust, material \w+ → tread\. Nothing is added, moved or removed\.$/.test(r.plan.summary), 'a room type restyles the floor and material: ' + (r.error || r.plan.summary));
-  A.ok(SB.apply(st, r.plan, renv).ok && st.rooms()[0].floorStyle === 'rust' && st.rooms()[0].floorMat === 'tread', 'and applies them');
+  A.ok(r.ok && /^Restyle HOME with the FOUNDRY floor: floor \w+ → oak(, material \w+ → plank)?\. Nothing is added, moved or removed\.$/ /* FARM FORK: FOUNDRY is oak plank */.test(r.plan.summary), 'a room type restyles the floor and material: ' + (r.error || r.plan.summary));
+  A.ok(SB.apply(st, r.plan, renv).ok && st.rooms()[0].floorStyle === 'oak' && (st.rooms()[0].floorMat || 'plank') === 'plank', 'and applies them');   // FARM FORK
   st.undo(); A.eq(snap(st), before, 'one undo');
   const both = SB.planRestyle(st.serialize(), { room: 'HOME', type: 'lab', floorStyle: 'teal' }, renv);
   A.ok(both.ok && /floor \w+ → teal, material \w+ → tile/.test(both.plan.summary), 'a floorStyle given with a type wins over the type\'s own');
@@ -1053,7 +1053,7 @@ for (const c of T.catalog) {
         const rec = RS.ROOMS[RS.resolveRoom(q.style)], pieces = inRoom(st, rm.id);
         A.ok(pieces.length >= 10, what + ' ' + rm.name + ': furnished wall to wall (' + pieces.length + ' pieces)');
         if (pattern === 'diamond') A.eq(size(rm), '18x11', what + ' ' + rm.name + ': the grid\'s own size, like the bridge');
-        A.eq([rm.floorStyle, rm.floorMat || (M.ROOM_KINDS[rm.kind] || {}).mat, rm.wallMat || 'plating'], [rec.deck.style, rec.deck.mat, rec.walls.mat], what + ' ' + rm.name + ': its style\'s floor and walls');
+        A.eq([rm.floorStyle, rm.floorMat || (M.ROOM_KINDS[rm.kind] || {}).mat, rm.wallMat || 'wainscot'] /* FARM FORK: null walls = the farm default */, [rec.deck.style, rec.deck.mat, rec.walls.mat], what + ' ' + rm.name + ': its style\'s floor and walls');
       }
       const hall = st.rooms().find(x => x.name === 'CONVEYOR HALL'), hp = inRoom(st, hall.id);
       A.eq(hp.filter(p => p.t === 'intake').length, 2, what + ': the conveyor hall holds its two lines');
@@ -1938,7 +1938,7 @@ for (const c of T.catalog) {
     A.ok(r.ok && /^DEN, a new 18 × 11 room north of HOME, through a hallway: a lounge \(/.test(r.plan.summary) && /HOME \(18 × 11\): a library/.test(r.plan.summary), 'a styled new room, and an existing room furnished in a style: ' + (r.error || r.plan.summary.slice(0, 160)));
     if (r.ok) {
       const a = SB.apply(st, r.plan, E), den = st.rooms().find(x => x.name === 'DEN');
-      A.ok(a.ok && inRoom(st, den.id).length >= 12 && den.floorStyle === 'walnut' && den.wallMat === 'wainscot', 'the den is furnished in its style, with its floor and walls');
+      A.ok(a.ok && inRoom(st, den.id).length >= 12 && den.floorStyle === 'walnut' && (den.wallMat || 'wainscot') === 'wainscot' /* FARM FORK: wainscot is the default, stored as null */, 'the den is furnished in its style, with its floor and walls');
       A.ok(st.undo().ok); A.eq(snap(st), before, 'one undo');
     }
     const bad = SB.planBuild(st.serialize(), { rooms: [{ style: 'lounge', zones: [{ area: 'left', style: 'cozy' }] }] }, E);

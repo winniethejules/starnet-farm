@@ -1011,7 +1011,8 @@ A.eq(JSON.stringify(WM.deserialize({ rooms: {}, order: [], props: [], edges: [{ 
     A.eq(restored.roomById(id).floorMat, mid, mid + ' existing saved ID is retained');
     A.eq(restored.matOfRoom(id), mid, mid + ' existing save keeps its effective material');
   }
-  const defaults = { hab: 'spine', bridge: 'panel', lab: 'tile', factory: 'tread', quarters: 'soft', storage: 'tread', corridor: 'spine' };
+  // FARM FORK: the kinds' inherited decks are the farmstead woods (were spine / panel / tile / tread / soft / tread / spine)
+  const defaults = { hab: 'plank', bridge: 'parquet', lab: 'tile', factory: 'plank', quarters: 'parquet', storage: 'plank', corridor: 'plank' };
   for (const [kind, mid] of Object.entries(defaults)) {
     const doc = WM.defaultDoc(1), id = doc.meta.spawnRoomId;
     doc.rooms[id].kind = kind; doc.rooms[id].floorMat = null;
